@@ -1,7 +1,6 @@
 package main
 
 import (
-	"fmt"
 	"sync"
 
 	"golang.design/x/hotkey"
@@ -39,17 +38,11 @@ func listenHotkey(onKeyDown func(), key hotkey.Key, mods []hotkey.Modifier,) (er
 	ms = append(ms, mods...)
 	hk := hotkey.New(ms, key)
 
-	err = hk.Register()
-	if err != nil {
-		return
-	}
-
+	check(hk.Register())
+	
 	// Blocks until the hokey is triggered.
 	for {
 		<-hk.Keydown()
-		fmt.Printf("hotkey: %v is down\n", hk)
 		onKeyDown()
-		<-hk.Keyup()
-		fmt.Printf("hotkey: %v is up\n", hk)
 	}
 }
