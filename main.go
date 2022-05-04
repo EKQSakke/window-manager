@@ -6,6 +6,7 @@ import (
 	"syscall"
 	"unsafe"
 
+	"github.com/lxn/win"
 	"golang.design/x/hotkey"
 	"golang.org/x/sys/windows"
 )
@@ -16,6 +17,13 @@ var (
 	procGetWindowTextLength = w32.NewProc("GetWindowTextLengthW")
 	procGetForegroundWindow = w32.NewProc("GetForegroundWindow")
 	procSetWindowPos        = w32.NewProc("SetWindowPos")
+
+	windowList = []uintptr{}
+	screenWidth = int(win.GetSystemMetrics(win.SM_CXSCREEN))
+    
+	screenHeight = int(win.GetSystemMetrics(win.SM_CYSCREEN))
+	multi = .97
+	relativeScreenHeight = int(multi * float64(screenHeight))
 )
 
 type (
@@ -37,13 +45,15 @@ func main() {
 	go func() {
 		defer wg.Done()
 		check(listenHotkey(func() {
-			test()
+			addCurrentWindowToList()
 			println("I")
 		}, hotkey.KeyI, mods))
 	}()
 	go func() {
 		defer wg.Done()
 		check(listenHotkey(func() {
+			printAllWindows()
+			positionAllWindows()
 			println("K")
 		}, hotkey.KeyK, mods))
 	}()
@@ -64,14 +74,15 @@ func listenHotkey(onKeyDown func(), key hotkey.Key, mods []hotkey.Modifier) (err
 	}
 }
 
-func test() {
-	if hwnd := getWindow(); hwnd != 0 {
-		text := GetWindowText(HWND(hwnd))
-		fmt.Println("window :", text, "# hwnd:", hwnd)
+// func test() {
+// 	if hwnd := getWindow(); hwnd != 0 {
+// 		text := GetWindowText(HWND(hwnd))
+// 		fmt.Println("window :", text, "# hwnd:", hwnd)
 
-		setWindowPosition(hwnd, 1000, 500, 1000, 300)
-	}
-}
+// 	 	windowList = append(windowList, hwnd)	
+// 		setWindowPosition(hwnd, 1000, 500, 1000, 300)
+// 	}
+// }
 
 func GetWindowTextLength(hwnd HWND) int {
 	ret, _, _ := procGetWindowTextLength.Call(
@@ -99,4 +110,35 @@ func getWindow() uintptr {
 
 func setWindowPosition(hwnd uintptr, x, y, width, height int) {
 	procSetWindowPos.Call(hwnd, 0, uintptr(x), uintptr(y), uintptr(width), uintptr(height), 0)
+}
+
+func positionAllWindows() {	
+	for i, hwnd := range windowList {
+		if i == 0 { 
+			setWindowPosition(hwnd, 0, 0, screenWidth / 2, relativeScreenHeight)
+		} else {
+			setWindowPosition(hwnd, screenWidth / 2, 0, screenWidth / 2, relativeScreenHeight)
+		}
+	}
+}
+
+func printAllWindows() {
+	for _, hwnd := range windowList {
+		text := GetWindowText(HWND(hwnd))
+		fmt.Println(text, "# hwnd:", hwnd)
+	}
+}
+
+func addCurrentWindowToList() {
+	if hwnd := getWindow(); hwnd != 0 {
+		if !Contains(windowList, hwnd) {
+			windowList = append(windowList, hwnd)
+			println("window already in list")
+			return
+		}
+
+		text := GetWindowText(HWND(hwnd))
+		fmt.Println("added window :", text)
+		windowList = append(windowList, hwnd)
+	}	
 }
