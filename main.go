@@ -56,7 +56,6 @@ func listenHotkey(onKeyDown func(), key hotkey.Key, mods []hotkey.Modifier) (err
 	ms := []hotkey.Modifier{}
 	ms = append(ms, mods...)
 	hk := hotkey.New(ms, key)
-
 	Check(hk.Register())
 
 	for {
