@@ -74,16 +74,6 @@ func listenHotkey(onKeyDown func(), key hotkey.Key, mods []hotkey.Modifier) (err
 	}
 }
 
-// func test() {
-// 	if hwnd := getWindow(); hwnd != 0 {
-// 		text := GetWindowText(HWND(hwnd))
-// 		fmt.Println("window :", text, "# hwnd:", hwnd)
-
-// 	 	windowList = append(windowList, hwnd)	
-// 		setWindowPosition(hwnd, 1000, 500, 1000, 300)
-// 	}
-// }
-
 func GetWindowTextLength(hwnd HWND) int {
 	ret, _, _ := procGetWindowTextLength.Call(
 		uintptr(hwnd))
