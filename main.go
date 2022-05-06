@@ -2,8 +2,8 @@ package main
 
 import (
 	"fmt"
+	"sync"
 	"syscall"
-    "sync"
 	"unsafe"
 
 	"github.com/lxn/win"
@@ -18,38 +18,33 @@ var (
 	procGetForegroundWindow = w32.NewProc("GetForegroundWindow")
 	procSetWindowPos        = w32.NewProc("SetWindowPos")
 
-	windowList = []uintptr{}
-	screenWidth = int(win.GetSystemMetrics(win.SM_CXSCREEN))
-	screenHeight = int(win.GetSystemMetrics(win.SM_CYSCREEN))
-	multi = .97
-	relativeScreenHeight = int(multi * float64(screenHeight))
-)
-
-type (
-	HANDLE uintptr
-	HWND   HANDLE
+	windowList           = []uintptr{}
+	screenWidth          = float32(win.GetSystemMetrics(win.SM_CXSCREEN))
+	screenHeight         = float32(win.GetSystemMetrics(win.SM_CYSCREEN))
+	multi                = .97
+	relativeScreenHeight = float32(multi * float64(screenHeight))
 )
 
 func main() {
-    wg := sync.WaitGroup{}
-    wg.Add(2)
-    mods := []hotkey.Modifier{hotkey.ModShift, hotkey.ModCtrl}
-    go func() {
-    	defer wg.Done()
-    	Check(listenHotkey(func() {
-    		addCurrentWindowToList()
-    		println("I")
-    	}, hotkey.KeyI, mods))
-    }()
-    go func() {
-    	defer wg.Done()
-    	Check(listenHotkey(func() {
-    		printAllWindows()
-    		positionAllWindows()
-    		println("K")
-    	}, hotkey.KeyK, mods))
-    }()
-    wg.Wait()
+	wg := sync.WaitGroup{}
+	wg.Add(2)
+	mods := []hotkey.Modifier{hotkey.ModShift, hotkey.ModCtrl}
+	go func() {
+		defer wg.Done()
+		Check(listenHotkey(func() {
+			addCurrentWindowToList()
+			println("I")
+		}, hotkey.KeyI, mods))
+	}()
+	go func() {
+		defer wg.Done()
+		Check(listenHotkey(func() {
+			printAllWindows()
+			positionAllWindows()
+			println("K")
+		}, hotkey.KeyK, mods))
+	}()
+	wg.Wait()
 }
 
 func listenHotkey(onKeyDown func(), key hotkey.Key, mods []hotkey.Modifier) (err error) {
@@ -65,14 +60,14 @@ func listenHotkey(onKeyDown func(), key hotkey.Key, mods []hotkey.Modifier) (err
 	}
 }
 
-func GetWindowTextLength(hwnd HWND) int {
+func GetWindowTextLength(hwnd uintptr) int {
 	ret, _, _ := procGetWindowTextLength.Call(
 		uintptr(hwnd))
 
 	return int(ret)
 }
 
-func GetWindowText(hwnd HWND) string {
+func GetWindowText(hwnd uintptr) string {
 	textLen := GetWindowTextLength(hwnd) + 1
 
 	buf := make([]uint16, textLen)
@@ -90,22 +85,29 @@ func getWindow() uintptr {
 }
 
 func setWindowPosition(hwnd uintptr, x, y, width, height int) {
-	procSetWindowPos.Call(hwnd, 0, uintptr(x), uintptr(y), uintptr(width), uintptr(height), 0)
+	procSetWindowPos.Call(hwnd,
+		0,
+		uintptr(float32(x)/100*screenWidth),
+		uintptr(float32(y)/100*relativeScreenHeight),
+		uintptr(float32(width)/100*screenWidth),
+		uintptr(float32(height)/100*relativeScreenHeight),
+		0)
 }
 
 func positionAllWindows() {
+	if len(windowList) == 0 {
+		return
+	}
+
+	layout := getLayout(len(windowList) - 1)
 	for i, hwnd := range windowList {
-		if i == 0 {
-			setWindowPosition(hwnd, 0, 0, screenWidth / 2, relativeScreenHeight)
-		} else {
-			setWindowPosition(hwnd, screenWidth / 2, 0, screenWidth / 2, relativeScreenHeight)
-		}
+		setWindowPosition(hwnd, layout.Windows[i].x, layout.Windows[i].y, layout.Windows[i].w, layout.Windows[i].h)
 	}
 }
 
 func printAllWindows() {
 	for _, hwnd := range windowList {
-		text := GetWindowText(HWND(hwnd))
+		text := GetWindowText(uintptr(hwnd))
 		fmt.Println(text, "# hwnd:", hwnd)
 	}
 }
@@ -114,12 +116,12 @@ func addCurrentWindowToList() {
 	if hwnd := getWindow(); hwnd != 0 {
 		if !Contains(windowList, hwnd) {
 			windowList = append(windowList, hwnd)
-            text := GetWindowText(HWND(hwnd))
-            fmt.Println("added window :", text)
-            getLayout(len(windowList))
+			text := GetWindowText(uintptr(hwnd))
+			fmt.Println("added window :", text)
+			getLayout(len(windowList))
 			return
 		}
 
-        println("window already in list")
+		println("window already in list")
 	}
 }
