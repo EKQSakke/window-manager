@@ -17,10 +17,6 @@ var (
 	procGetWindowTextLength = w32.NewProc("GetWindowTextLengthW")
 	procGetForegroundWindow = w32.NewProc("GetForegroundWindow")
 	procSetWindowPos        = w32.NewProc("SetWindowPos")
-	procEnumWindows         = w32.NewProc("EnumWindows")
-	procIsWindowVisible     = w32.NewProc("IsWindowVisible")
-	procIsIconic            = w32.NewProc("IsIconic")
-	procGetClientRect       = w32.NewProc("GetClientRect")
 
 	windowList           = []uintptr{}
 	screenWidth          = float32(win.GetSystemMetrics(win.SM_CXSCREEN))
@@ -29,21 +25,11 @@ var (
 	relativeScreenHeight = float32(multi * float64(screenHeight))
 )
 
-type LONG int32
-
-type RECT struct {
-	left   LONG
-	top    LONG
-	right  LONG
-	bottom LONG
-}
-
 func main() {
 	ShowNotification("Hello!")
-	getAllWindows()
 
 	wg := sync.WaitGroup{}
-	wg.Add(2)
+	wg.Add(5)
 	mods := []hotkey.Modifier{hotkey.ModAlt, hotkey.ModCtrl}
 	go func() {
 		defer wg.Done()
@@ -74,60 +60,6 @@ func main() {
 	}()
 
 	wg.Wait()
-}
-
-func getAllWindows() {
-	cb := syscall.NewCallback(func(h syscall.Handle, p uintptr) uintptr {
-		text := getWindowText(uintptr(h))
-
-		rect := RECT{}
-
-		r1, _, _ := procIsWindowVisible.Call(uintptr(h))
-		procGetClientRect.Call(uintptr(h), uintptr(unsafe.Pointer(&rect)))
-
-		if r1 == 1 && isValidRect(rect) && isValidTitle(text) {
-			println(text)
-		}
-		return 1
-	})
-	enumWindows(cb, 0)
-}
-
-func isValidTitle(text string) bool {
-	if text == "" {
-		return false
-	}
-
-	// These seem to always exist
-	if text == "Settings" || text ==  "Movies & TV" || text == "MainWindow" {
-		return false
-	}
-
-	return true
-}
-
-func isValidRect(rect RECT) bool {
-	if rect.bottom == 0 && rect.right == 0 {
-		return false
-	}
-
-	if rect.right == LONG(screenWidth) && rect.bottom == LONG(screenHeight) {
-		return false
-	}
-
-	return true
-}
-
-func enumWindows(enumFunc uintptr, lparam uintptr) (err error) {
-	r1, _, e1 := syscall.Syscall(procEnumWindows.Addr(), 2, uintptr(enumFunc), uintptr(lparam), 0)
-	if r1 == 0 {
-		if e1 != 0 {
-			err = error(e1)
-		} else {
-			err = syscall.EINVAL
-		}
-	}
-	return
 }
 
 func moveWindow(i int) {
