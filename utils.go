@@ -10,6 +10,15 @@ func Contains[T comparable](s []T, e T) bool {
 	return false
 }
 
+func GetId[T comparable](s []T, e T) int {
+	for i, v := range s {
+		if v == e {
+			return i
+		}
+	}
+	return -1
+}
+
 func Check(err error) {
 	if err != nil {
 		panic(err)
