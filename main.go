@@ -160,6 +160,6 @@ func addCurrentWindowToList() {
 			return
 		}
 
-		println("window already in list")
+		println("window already in list - not adding")
 	}
 }
